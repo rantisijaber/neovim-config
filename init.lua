@@ -16,6 +16,19 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 -- =============================
+-- Filetype detection for SystemVerilog
+-- =============================
+-- Neovim's built-in filetype detection already handles .v/.sv/.svh as
+-- "verilog"/"systemverilog", but this makes sure it's explicit.
+vim.filetype.add({
+  extension = {
+    sv = "systemverilog",
+    svh = "systemverilog",
+    v = "verilog",
+  },
+})
+
+-- =============================
 -- Plugins
 -- =============================
 require("lazy").setup({
@@ -41,6 +54,9 @@ require("lazy").setup({
   -- Autopairs
   { "windwp/nvim-autopairs" },
 
+  -- SystemVerilog LSP frontend (slang-server enhanced features)
+  { "hudson-trading/slang-server.nvim" },
+
   -- Treesitter
   {
     "nvim-treesitter/nvim-treesitter",
@@ -50,7 +66,10 @@ require("lazy").setup({
       local ok, ts = pcall(require, "nvim-treesitter.configs")
       if ok then
         ts.setup({
-          ensure_installed = { "c", "java", "cpp", "lua", "python", "javascript", "html", "css" },
+          ensure_installed = {
+            "c", "java", "cpp", "lua", "python", "javascript", "html", "css",
+            "verilog", -- covers Verilog/SystemVerilog syntax highlighting
+          },
           highlight = { enable = true, additional_vim_regex_highlighting = false },
           indent = { enable = true },
           autopairs = { enable = true },
@@ -107,40 +126,59 @@ vim.keymap.set("n", "<leader>g", ":Telescope live_grep<CR>")
 -- =============================
 -- LSP setup (new API for Neovim 0.11+)
 -- =============================
--- =============================
--- LSP setup without deprecated warnings
--- =============================
--- =============================
--- LSP setup without deprecated warnings
--- =============================
 require("mason").setup()
 require("mason-lspconfig").setup({
-  ensure_installed = { "clangd", "pyright", "lua_ls", "jdtls"},
+  ensure_installed = { "clangd", "pyright", "lua_ls", "jdtls", "slang_server" },
 })
+
+-- Capabilities that tell servers we support nvim-cmp's completion features
+-- (snippets, etc.) -- without this, completion can be more limited.
+local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
 -- Start servers with the new API
 vim.lsp.start({
   name = "clangd",
   cmd = { "clangd" },
   root_dir = vim.fs.dirname(
-    vim.fs.find({ ".git", "compile_commands.json" }, { upward = true })[1] 
-    or vim.loop.cwd()
+    vim.fs.find({ ".git", "compile_commands.json" }, { upward = true })[1]
+      or vim.loop.cwd()
   ),
   filetypes = { "c", "cpp" },
+  capabilities = capabilities,
 })
+
 vim.lsp.start({
   name = "pyright",
   cmd = { "pyright-langserver", "--stdio" },
   filetypes = { "python" },
+  capabilities = capabilities,
 })
 
 vim.lsp.start({
   name = "lua_ls",
   cmd = { "lua-language-server" },
   filetypes = { "lua" },
+  capabilities = capabilities,
 })
 
-
+-- =============================
+-- SystemVerilog / Verilog LSP (slang-server, by Hudson River Trading)
+-- =============================
+-- Install the binary via :MasonInstall slang-server (handled above by
+-- mason-lspconfig ensure_installed), or place `slang-server` on your PATH
+-- manually if you'd rather not use Mason for it.
+--
+-- We define the config explicitly with vim.lsp.config() rather than relying
+-- on nvim-lspconfig shipping a built-in lsp/slang_server.lua -- some
+-- versions of that plugin don't have it yet, which causes the
+-- "'slang_server' config not found" warning in :checkhealth vim.lsp.
+vim.lsp.config("slang_server", {
+  cmd = { "slang-server" },
+  filetypes = { "verilog", "systemverilog" },
+  root_markers = { ".git", "*.xdc" },
+  capabilities = capabilities,
+})
+vim.lsp.enable("slang_server")
 
 -- =============================
 -- Autocomplete setup
@@ -176,4 +214,3 @@ require("telescope").setup()
 -- Autopairs setup
 -- =============================
 require("nvim-autopairs").setup({})
-
