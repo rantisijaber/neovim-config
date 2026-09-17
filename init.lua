@@ -16,15 +16,19 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 -- =============================
--- Filetype detection for SystemVerilog
+-- Filetype detection for SystemVerilog + C3
 -- =============================
 -- Neovim's built-in filetype detection already handles .v/.sv/.svh as
 -- "verilog"/"systemverilog", but this makes sure it's explicit.
+-- C3 uses .c3 for source files and .c3i for interface/header files;
+-- neither is known to Neovim by default, so both are added here.
 vim.filetype.add({
   extension = {
     sv = "systemverilog",
     svh = "systemverilog",
     v = "verilog",
+    c3 = "c3",
+    c3i = "c3",
   },
 })
 
@@ -57,18 +61,73 @@ require("lazy").setup({
   -- SystemVerilog LSP frontend (slang-server enhanced features)
   { "hudson-trading/slang-server.nvim" },
 
+  -- Java LSP (jdtls) -- needs its own plugin since it requires a
+  -- per-project workspace dir and exposes extra code-action commands
+  -- (organize imports, extract variable/method, etc.) beyond plain LSP.
+  { "mfussenegger/nvim-jdtls", ft = "java" },
+
+  -- C3 query source (not a runtime plugin -- this has no plugin/ or lua/
+  -- to load, it's cloned purely so we have a persistent, auto-updating
+  -- local copy of the grammar repo's queries/ folder). On nvim-treesitter's
+  -- "master" branch, parser_config.install_info has no way to fetch a
+  -- custom parser's query files (that's a main-branch-only feature), so we
+  -- sync them ourselves via this build step -- which reruns automatically
+  -- on every `:Lazy sync`/update, unlike a one-off manual curl.
+  {
+    "c3lang/tree-sitter-c3",
+    lazy = true,
+    build = function()
+      local src = vim.fn.stdpath("data") .. "/lazy/tree-sitter-c3/queries"
+      local dest = vim.fn.stdpath("data") .. "/lazy/nvim-treesitter/queries/c3"
+      if vim.fn.isdirectory(src) == 1 then
+        vim.fn.mkdir(dest, "p")
+        vim.fn.system({ "sh", "-c", string.format("cp -f '%s'/*.scm '%s'/", src, dest) })
+      end
+    end,
+  },
+
   -- Treesitter
+  -- Pinned to "master" (the legacy branch) rather than "main": nvim-treesitter
+  -- shipped a full, intentionally incompatible rewrite on main that removes
+  -- configs.setup({ ensure_installed, highlight, indent }) and
+  -- parsers.get_parser_configs() entirely, replacing them with a lower-level
+  -- manual API. Our config (and the rainbow/autopairs submodules) relies on
+  -- the old module system, so master is the correct branch here.
   {
     "nvim-treesitter/nvim-treesitter",
+    branch = "master",
     lazy = false,
     build = ":TSUpdate",
     config = function()
+      -- c3 is NOT in nvim-treesitter's built-in parser registry, so just
+      -- listing "c3" in ensure_installed does nothing (or errors with
+      -- "no parser for lang c3"). It has to be registered by hand, pointing
+      -- straight at the official grammar repo, before ensure_installed can
+      -- find it.
+      --
+      -- Note: there's no "queries" field here, unlike some examples you'll
+      -- find online -- that key only exists on nvim-treesitter's newer
+      -- "main" branch installer. On "master" (which we're pinned to, see
+      -- above) it's silently ignored, so highlight queries are instead kept
+      -- in sync via the c3lang/tree-sitter-c3 plugin entry above, whose
+      -- build step copies them into nvim-treesitter's queries/c3/ folder.
+      local parser_config = require("nvim-treesitter.parsers").get_parser_configs()
+      parser_config.c3 = {
+        install_info = {
+          url = "https://github.com/c3lang/tree-sitter-c3",
+          files = { "src/parser.c", "src/scanner.c" },
+          branch = "main",
+        },
+        filetype = "c3",
+      }
+
       local ok, ts = pcall(require, "nvim-treesitter.configs")
       if ok then
         ts.setup({
           ensure_installed = {
             "c", "java", "cpp", "lua", "python", "javascript", "html", "css",
             "verilog", -- covers Verilog/SystemVerilog syntax highlighting
+            "c3",      -- official C3 grammar, registered above
           },
           highlight = { enable = true, additional_vim_regex_highlighting = false },
           indent = { enable = true },
@@ -128,8 +187,29 @@ vim.keymap.set("n", "<leader>g", ":Telescope live_grep<CR>")
 -- =============================
 require("mason").setup()
 require("mason-lspconfig").setup({
+  -- NOTE: c3-lsp is intentionally NOT listed here. mason-lspconfig validates
+  -- ensure_installed against nvim-lspconfig's built-in server registry, and
+  -- c3-lsp isn't in it yet, which throws:
+  --   "Server 'c3lsp' is not a valid entry in ensure_installed."
+  -- It's still a real Mason package though, so it's installed directly
+  -- below and wired up by hand via vim.lsp.config/vim.lsp.enable, exactly
+  -- like slang_server.
   ensure_installed = { "clangd", "pyright", "lua_ls", "jdtls", "slang_server" },
 })
+
+-- Install c3-lsp's binary via Mason directly, since mason-lspconfig won't
+-- manage it (see note above). Safe to call repeatedly -- it's a no-op once
+-- installed. Remove this block if you'd rather install manually with
+-- :MasonInstall c3-lsp or keep the binary on your PATH yourself.
+local mason_registry_ok, mason_registry = pcall(require, "mason-registry")
+if mason_registry_ok then
+  mason_registry.refresh(function()
+    local ok, pkg = pcall(mason_registry.get_package, "c3-lsp")
+    if ok and not pkg:is_installed() then
+      pkg:install()
+    end
+  end)
+end
 
 -- Capabilities that tell servers we support nvim-cmp's completion features
 -- (snippets, etc.) -- without this, completion can be more limited.
@@ -179,6 +259,86 @@ vim.lsp.config("slang_server", {
   capabilities = capabilities,
 })
 vim.lsp.enable("slang_server")
+
+-- =============================
+-- C3 LSP (c3-lsp, by pherrymason)
+-- =============================
+-- The binary is installed directly via mason-registry above (Mason package
+-- name "c3-lsp"; not managed by mason-lspconfig -- see note above), or you
+-- can place `c3lsp` on your PATH manually instead.
+--
+-- nvim-lspconfig has no built-in lsp/c3lsp.lua yet, so we define the config
+-- explicitly with vim.lsp.config() to avoid a "'c3lsp' config not found"
+-- warning -- same approach as slang_server.
+-- root_markers uses project.json since that's the standard C3 project file
+-- (see c3lang/tree-sitter-c3's editor integration notes).
+vim.lsp.config("c3lsp", {
+  cmd = { "c3lsp" },
+  filetypes = { "c3" },
+  root_markers = { "project.json", ".git" },
+  capabilities = capabilities,
+})
+vim.lsp.enable("c3lsp")
+
+-- =============================
+-- Java LSP (jdtls)
+-- =============================
+-- jdtls is different from the servers above: it needs a unique workspace
+-- directory per project and should be (re)started whenever a Java file is
+-- opened, rather than once at startup with vim.lsp.start(). We use
+-- nvim-jdtls's start_or_attach for this, wired up via a FileType autocmd.
+--
+-- Binary is installed via Mason (see ensure_installed above: "jdtls").
+-- Optional extras for debugging/testing support:
+--   :MasonInstall java-debug-adapter java-test
+local jdtls_group = vim.api.nvim_create_augroup("JdtlsSetup", { clear = true })
+
+vim.api.nvim_create_autocmd("FileType", {
+  group = jdtls_group,
+  pattern = "java",
+  callback = function()
+    local ok, jdtls = pcall(require, "jdtls")
+    if not ok then
+      return
+    end
+
+    -- Find project root; falls back gracefully if none of these markers exist
+    local root_dir = require("jdtls.setup").find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
+    if not root_dir then
+      return
+    end
+
+    -- Unique workspace dir per project so jdtls doesn't mix state across projects
+    local project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+    local workspace_dir = vim.fn.stdpath("data") .. "/jdtls-workspace/" .. project_name
+
+    local config = {
+      cmd = { "jdtls", "-data", workspace_dir },
+      root_dir = root_dir,
+      capabilities = capabilities,
+
+      settings = {
+        java = {
+          signatureHelp = { enabled = true },
+          completion = { favoriteStaticMembers = {} },
+        },
+      },
+
+      -- Enables extra jdtls features (extract var/method, organize imports, etc.)
+      init_options = {
+        bundles = {},
+      },
+    }
+
+    jdtls.start_or_attach(config)
+
+    -- Java-specific keymaps (buffer-local, only active in .java files)
+    vim.keymap.set("n", "<leader>jo", jdtls.organize_imports, { buffer = 0, desc = "Java: Organize Imports" })
+    vim.keymap.set("n", "<leader>jv", jdtls.extract_variable, { buffer = 0, desc = "Java: Extract Variable" })
+    vim.keymap.set("n", "<leader>jc", jdtls.extract_constant, { buffer = 0, desc = "Java: Extract Constant" })
+    vim.keymap.set("v", "<leader>jm", function() jdtls.extract_method(true) end, { buffer = 0, desc = "Java: Extract Method" })
+  end,
+})
 
 -- =============================
 -- Autocomplete setup
