@@ -1182,6 +1182,34 @@ require("nvim-tree").setup({
   },
 })
 
+-- <leader>cm in visual mode: turn the selected block into a C macro
+-- (adds aligned trailing backslashes to every line except the last)
+vim.keymap.set("x", "<leader>cm", function()
+  local s, e = vim.fn.line("v"), vim.fn.line(".")
+  if s > e then s, e = e, s end
+
+  local lines = vim.api.nvim_buf_get_lines(0, s - 1, e, false)
+
+  -- strip any existing trailing backslash/whitespace so re-running is safe
+  for i, l in ipairs(lines) do
+    lines[i] = (l:gsub("%s*\\%s*$", ""):gsub("%s+$", ""))
+  end
+
+  local width = 0
+  for i = 1, #lines - 1 do
+    width = math.max(width, vim.fn.strdisplaywidth(lines[i]))
+  end
+
+  for i = 1, #lines - 1 do
+    local pad = width - vim.fn.strdisplaywidth(lines[i]) + 1
+    lines[i] = lines[i] .. string.rep(" ", pad) .. "\\"
+  end
+
+  vim.api.nvim_buf_set_lines(0, s - 1, e, false, lines)
+  vim.api.nvim_feedkeys(
+    vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+end, { desc = "C: add macro backslashes to selection" })
+
 -- =============================
 -- Telescope
 -- =============================
