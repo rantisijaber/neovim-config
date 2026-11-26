@@ -1,19 +1,8 @@
--- ~/.config/nvim/init.lua
--- =============================
--- Leader key (must be set BEFORE plugins/keymaps load)
--- =============================
 vim.g.mapleader = " "
 
--- =============================
--- Zig: disable built-in ftplugin autoformat
--- (we format through ZLS on save instead, see "Zig" section below)
--- =============================
 vim.g.zig_fmt_autosave = 0
 vim.g.zig_fmt_parse_errors = 0
 
--- =============================
--- Bootstrap Lazy.nvim
--- =============================
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 
 if not vim.loop.fs_stat(lazypath) then
@@ -29,9 +18,6 @@ end
 
 vim.opt.rtp:prepend(lazypath)
 
--- =============================
--- Filetype detection
--- =============================
 vim.filetype.add({
   extension = {
     sv = "systemverilog",
@@ -44,39 +30,23 @@ vim.filetype.add({
   },
 })
 
--- =============================
--- Plugins
--- =============================
 require("lazy").setup({
 
-  -- =============================
-  -- Colorscheme
-  -- =============================
   {
     "folke/tokyonight.nvim",
   },
 
-  -- =============================
-  -- LaTeX
-  -- =============================
-
-  -- Main LaTeX plugin
   {
     "lervag/vimtex",
     ft = "tex",
     config = function()
       vim.g.vimtex_view_method = "skim"
       vim.g.vimtex_compiler_method = "latexmk"
-
-      -- Don't open a new window for compilation messages
       vim.g.vimtex_quickfix_mode = 0
-
-      -- Make VimTeX recognize common math files
       vim.g.vimtex_syntax_enabled = 1
     end,
   },
 
-  -- Snippets
   {
     "L3MON4D3/LuaSnip",
     version = "v2.*",
@@ -85,14 +55,10 @@ require("lazy").setup({
     },
   },
 
-  -- Allows nvim-cmp to use LuaSnip
   {
     "saadparwaiz1/cmp_luasnip",
   },
 
-  -- =============================
-  -- LSP
-  -- =============================
   {
     "neovim/nvim-lspconfig",
   },
@@ -105,9 +71,6 @@ require("lazy").setup({
     "williamboman/mason-lspconfig.nvim",
   },
 
-  -- =============================
-  -- Autocomplete
-  -- =============================
   {
     "hrsh7th/nvim-cmp",
   },
@@ -116,9 +79,6 @@ require("lazy").setup({
     "hrsh7th/cmp-nvim-lsp",
   },
 
-  -- =============================
-  -- File Explorer & Icons
-  -- =============================
   {
     "nvim-tree/nvim-tree.lua",
   },
@@ -127,9 +87,6 @@ require("lazy").setup({
     "nvim-tree/nvim-web-devicons",
   },
 
-  -- =============================
-  -- Fuzzy Finder
-  -- =============================
   {
     "nvim-telescope/telescope.nvim",
     dependencies = {
@@ -137,31 +94,19 @@ require("lazy").setup({
     },
   },
 
-  -- =============================
-  -- Autopairs
-  -- =============================
   {
     "windwp/nvim-autopairs",
   },
 
-  -- =============================
-  -- SystemVerilog
-  -- =============================
   {
     "hudson-trading/slang-server.nvim",
   },
 
-  -- =============================
-  -- Java
-  -- =============================
   {
     "mfussenegger/nvim-jdtls",
     ft = "java",
   },
 
-  -- =============================
-  -- C3 grammar
-  -- =============================
   {
     "c3lang/tree-sitter-c3",
     lazy = true,
@@ -189,9 +134,6 @@ require("lazy").setup({
     end,
   },
 
-  -- =============================
-  -- Treesitter
-  -- =============================
   {
     "nvim-treesitter/nvim-treesitter",
     branch = "master",
@@ -200,7 +142,6 @@ require("lazy").setup({
 
     config = function()
 
-      -- Register C3 parser
       local parser_config =
         require("nvim-treesitter.parsers").get_parser_configs()
 
@@ -250,9 +191,6 @@ require("lazy").setup({
   },
 })
 
--- =============================
--- General settings
--- =============================
 vim.opt.number = true
 vim.opt.relativenumber = false
 vim.opt.cursorline = true
@@ -267,23 +205,14 @@ vim.opt.mouse = "a"
 vim.cmd([[syntax on]])
 vim.cmd([[filetype plugin indent on]])
 
--- =============================
--- Indentation
--- =============================
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 vim.opt.softtabstop = 4
 vim.opt.expandtab = true
 vim.opt.smartindent = true
 
--- =============================
--- Colorscheme
--- =============================
 vim.cmd([[colorscheme tokyonight-night]])
 
--- =============================
--- Diagnostics
--- =============================
 vim.diagnostic.config({
   virtual_text = {
     prefix = "●",
@@ -302,11 +231,6 @@ vim.diagnostic.config({
   },
 })
 
--- =============================
--- Keymaps
--- =============================
-
--- File tree
 vim.keymap.set(
   "n",
   "<leader>e",
@@ -314,9 +238,6 @@ vim.keymap.set(
   { desc = "File tree" }
 )
 
--- =============================
--- Telescope
--- =============================
 vim.keymap.set(
   "n",
   "<leader>f",
@@ -366,9 +287,6 @@ vim.keymap.set(
   { desc = "Symbols" }
 )
 
--- =============================
--- Diagnostics
--- =============================
 vim.keymap.set(
   "n",
   "<leader>d",
@@ -400,9 +318,6 @@ vim.keymap.set(
   { desc = "Next diagnostic" }
 )
 
--- =============================
--- LSP keymaps
--- =============================
 vim.api.nvim_create_autocmd(
   "LspAttach",
   {
@@ -448,9 +363,6 @@ vim.api.nvim_create_autocmd(
   }
 )
 
--- =============================
--- LSP / Mason
--- =============================
 require("mason").setup()
 
 require("mason-lspconfig").setup({
@@ -467,9 +379,6 @@ require("mason-lspconfig").setup({
   automatic_enable = false,
 })
 
--- =============================
--- C3 Mason installation
--- =============================
 local mason_registry_ok, mason_registry =
   pcall(require, "mason-registry")
 
@@ -489,15 +398,9 @@ if mason_registry_ok then
   end)
 end
 
--- =============================
--- LSP capabilities
--- =============================
 local capabilities =
   require("cmp_nvim_lsp").default_capabilities()
 
--- =============================
--- C / C++
--- =============================
 vim.lsp.config("clangd", {
   cmd = {
     "clangd",
@@ -516,9 +419,6 @@ vim.lsp.config("clangd", {
   capabilities = capabilities,
 })
 
--- =============================
--- Python
--- =============================
 vim.lsp.config("pyright", {
   cmd = {
     "pyright-langserver",
@@ -539,9 +439,6 @@ vim.lsp.config("pyright", {
   capabilities = capabilities,
 })
 
--- =============================
--- Lua
--- =============================
 vim.lsp.config("lua_ls", {
   cmd = {
     "lua-language-server",
@@ -569,9 +466,6 @@ vim.lsp.config("lua_ls", {
   },
 })
 
--- =============================
--- LaTeX / TexLab
--- =============================
 vim.lsp.config("texlab", {
   cmd = {
     "texlab",
@@ -614,9 +508,6 @@ vim.lsp.config("texlab", {
   },
 })
 
--- =============================
--- SystemVerilog / Verilog
--- =============================
 vim.lsp.config("slang_server", {
   cmd = {
     "slang-server",
@@ -635,9 +526,6 @@ vim.lsp.config("slang_server", {
   capabilities = capabilities,
 })
 
--- =============================
--- C3
--- =============================
 vim.lsp.config("c3lsp", {
   cmd = {
     "c3lsp",
@@ -655,9 +543,6 @@ vim.lsp.config("c3lsp", {
   capabilities = capabilities,
 })
 
--- =============================
--- Zig
--- =============================
 vim.lsp.config("zls", {
   cmd = {
     "zls",
@@ -679,8 +564,6 @@ vim.lsp.config("zls", {
 
   settings = {
     zls = {
-      -- Run `zig build check` on save for full compiler diagnostics
-      -- (add a "check" step to build.zig to take advantage of this)
       enable_build_on_save = true,
       build_on_save_step = "check",
 
@@ -692,7 +575,6 @@ vim.lsp.config("zls", {
   },
 })
 
--- Enable LSPs
 vim.lsp.enable({
   "clangd",
   "pyright",
@@ -703,16 +585,12 @@ vim.lsp.enable({
   "zls",
 })
 
--- =============================
--- Zig: format on save + build keymaps
--- =============================
 local zig_group =
   vim.api.nvim_create_augroup(
     "ZigSetup",
     { clear = true }
   )
 
--- Format with ZLS (which uses `zig fmt`) on save
 vim.api.nvim_create_autocmd(
   "BufWritePre",
   {
@@ -732,7 +610,6 @@ vim.api.nvim_create_autocmd(
   }
 )
 
--- Buffer-local build/run/test keymaps
 vim.api.nvim_create_autocmd(
   "FileType",
   {
@@ -785,17 +662,11 @@ vim.api.nvim_create_autocmd(
   }
 )
 
--- =============================
--- Helper: run a shell command in a terminal split
--- =============================
 local function run_in_term(cmd)
   vim.cmd("write")
   vim.cmd("split | terminal " .. cmd)
 end
 
--- =============================
--- C: compile / run keymaps
--- =============================
 local c_group =
   vim.api.nvim_create_augroup(
     "CBuild",
@@ -816,7 +687,6 @@ vim.api.nvim_create_autocmd(
         return src, out
       end
 
-      -- Compile current file
       vim.keymap.set(
         "n",
         "<leader>cc",
@@ -830,7 +700,6 @@ vim.api.nvim_create_autocmd(
         }
       )
 
-      -- Compile and run current file
       vim.keymap.set(
         "n",
         "<leader>cr",
@@ -847,7 +716,6 @@ vim.api.nvim_create_autocmd(
         }
       )
 
-      -- Run make in the current working directory
       vim.keymap.set(
         "n",
         "<leader>cm",
@@ -863,9 +731,6 @@ vim.api.nvim_create_autocmd(
   }
 )
 
--- =============================
--- C3: compile / run keymaps
--- =============================
 local c3_group =
   vim.api.nvim_create_augroup(
     "C3Build",
@@ -884,7 +749,6 @@ vim.api.nvim_create_autocmd(
         return vim.fn.shellescape(vim.fn.expand("%:p"))
       end
 
-      -- Compile current file
       vim.keymap.set(
         "n",
         "<leader>3c",
@@ -897,7 +761,6 @@ vim.api.nvim_create_autocmd(
         }
       )
 
-      -- Compile and run current file
       vim.keymap.set(
         "n",
         "<leader>3f",
@@ -910,8 +773,6 @@ vim.api.nvim_create_autocmd(
         }
       )
 
-      -- Find the folder containing project.json, searching upward
-      -- from the current file, so it works no matter where nvim was opened
       local function in_project(cmd)
         local root = vim.fs.root(0, "project.json")
         if not root then
@@ -924,8 +785,6 @@ vim.api.nvim_create_autocmd(
         run_in_term("cd " .. vim.fn.shellescape(root) .. " && " .. cmd)
       end
 
-      -- Compile and run ALL .c3 files in the current file's folder
-      -- and its subfolders (no project.json needed)
       vim.keymap.set(
         "n",
         "<leader>3a",
@@ -941,7 +800,6 @@ vim.api.nvim_create_autocmd(
         }
       )
 
-      -- Build project (needs project.json)
       vim.keymap.set(
         "n",
         "<leader>3b",
@@ -954,7 +812,6 @@ vim.api.nvim_create_autocmd(
         }
       )
 
-      -- Build and run project (needs project.json)
       vim.keymap.set(
         "n",
         "<leader>3r",
@@ -970,9 +827,6 @@ vim.api.nvim_create_autocmd(
   }
 )
 
--- =============================
--- Java LSP
--- =============================
 local jdtls_group =
   vim.api.nvim_create_augroup(
     "JdtlsSetup",
@@ -1093,9 +947,6 @@ vim.api.nvim_create_autocmd(
   }
 )
 
--- =============================
--- Completion
--- =============================
 local cmp = require("cmp")
 local luasnip = require("luasnip")
 
@@ -1166,9 +1017,6 @@ cmp.setup({
   },
 })
 
--- =============================
--- NvimTree
--- =============================
 require("nvim-tree").setup({
   hijack_cursor = true,
 
@@ -1182,15 +1030,12 @@ require("nvim-tree").setup({
   },
 })
 
--- <leader>cm in visual mode: turn the selected block into a C macro
--- (adds aligned trailing backslashes to every line except the last)
 vim.keymap.set("x", "<leader>cm", function()
   local s, e = vim.fn.line("v"), vim.fn.line(".")
   if s > e then s, e = e, s end
 
   local lines = vim.api.nvim_buf_get_lines(0, s - 1, e, false)
 
-  -- strip any existing trailing backslash/whitespace so re-running is safe
   for i, l in ipairs(lines) do
     lines[i] = (l:gsub("%s*\\%s*$", ""):gsub("%s+$", ""))
   end
@@ -1210,12 +1055,39 @@ vim.keymap.set("x", "<leader>cm", function()
     vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 end, { desc = "C: add macro backslashes to selection" })
 
--- =============================
--- Telescope
--- =============================
+vim.lsp.config("ocamllsp", {
+  cmd = { "ocamllsp" },
+  filetypes = { "ocaml", "ocaml.menhir", "ocaml.interface", "ocaml.ocamllex", "reason", "dune" },
+  root_markers = { "dune-project", "dune-workspace", "*.opam", ".git" },
+})
+vim.lsp.enable("ocamllsp")
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "ocaml", "ocaml.interface", "dune" },
+  callback = function()
+    vim.opt_local.shiftwidth = 2
+    vim.opt_local.tabstop = 2
+    vim.opt_local.expandtab = true
+  end,
+})
+
+vim.api.nvim_create_autocmd("BufWritePre", {
+  pattern = { "*.ml", "*.mli" },
+  callback = function() vim.lsp.buf.format({ async = false }) end,
+})
+
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    local o = { buffer = ev.buf }
+    vim.keymap.set("n", "gd", vim.lsp.buf.definition, o)
+    vim.keymap.set("n", "K", vim.lsp.buf.hover, o)
+    vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, o)
+    vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, o)
+    vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, o)
+    vim.keymap.set("n", "]d", vim.diagnostic.goto_next, o)
+  end,
+})
+
 require("telescope").setup()
 
--- =============================
--- Autopairs
--- =============================
 require("nvim-autopairs").setup({})
